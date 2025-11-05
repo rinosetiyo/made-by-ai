@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import ArticleList, ArticleDetail, CategoryList, CategoryDetail, CategoryArticlesList, SourceList, AuthorList, AuthorDetail, AuthorArticlesList, CommentListCreate, SubscribeView
+from .views import ArticleList, ArticleDetail, CategoryList, CategoryDetail, CategoryArticlesList, SourceList, AuthorList, AuthorDetail, AuthorArticlesList, CommentListCreate, SubscribeView, BookmarkListCreateView, BookmarkDeleteView, UserBookmarksView, ArticleBookmarksView, RelatedArticlesView
 
 urlpatterns = [
     path('articles/', ArticleList.as_view(), name='article-list'),
@@ -13,4 +13,9 @@ urlpatterns = [
     path('authors/<int:pk>/', AuthorDetail.as_view(), name='author-detail'),
     path('authors/<int:pk>/articles/', AuthorArticlesList.as_view(), name='author-articles-list'),
     path('subscribe/', SubscribeView.as_view(), name='subscribe'),
+    path('bookmarks/', BookmarkListCreateView.as_view(), name='bookmark-list-create'),
+    path('bookmarks/<int:pk>/', BookmarkDeleteView.as_view(), name='bookmark-delete'),
+    path('users/<int:user_id>/bookmarks/', UserBookmarksView.as_view(), name='user-bookmarks'),
+    path('articles/<int:article_id>/bookmarks/', ArticleBookmarksView.as_view(), name='article-bookmarks'),
+    path('articles/<int:article_id>/related/', RelatedArticlesView.as_view(), name='related-articles'),
 ]

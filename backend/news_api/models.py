@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 from django.utils import timezone
 
 class Category(models.Model):
@@ -67,3 +68,14 @@ class Comment(models.Model):
 
     def __str__(self):
         return f'Comment by {self.author_name} on {self.article.title}'
+
+class Bookmark(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookmarks')
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='bookmarks')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'article')  # Seorang pengguna hanya bisa mem-bookmark artikel satu kali
+
+    def __str__(self):
+        return f'{self.user.username} bookmarked {self.article.title}'

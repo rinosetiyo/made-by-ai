@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Article, Category, Source, Subscriber, Author, Comment
+from .models import Article, Category, Source, Subscriber, Author, Comment, Bookmark
 
 class CategorySerializer(serializers.ModelSerializer):
     subcategories = serializers.SerializerMethodField()
@@ -146,3 +146,12 @@ class ArticleSerializer(serializers.ModelSerializer):
         if value > 300:  # 5 hours max
             raise serializers.ValidationError("Read time must not exceed 300 minutes.")
         return value
+
+class BookmarkSerializer(serializers.ModelSerializer):
+    article = ArticleSerializer(read_only=True)
+    article_id = serializers.PrimaryKeyRelatedField(queryset=Article.objects.all(), source='article', write_only=True)
+
+    class Meta:
+        model = Bookmark
+        fields = ['id', 'user', 'article', 'article_id', 'created_at']
+        read_only_fields = ['user', 'created_at']

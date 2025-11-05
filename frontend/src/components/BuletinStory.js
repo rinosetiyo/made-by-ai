@@ -15,16 +15,16 @@ function BuletinStory() {
   return (
     <section className="mb-12">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-gray-900">Buletin Story</h2>
-        <a href="#" className="text-sm font-semibold text-red-600 hover:underline">See all →</a>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Buletin Story</h2>
+        <a href="#" className="text-sm font-semibold text-red-600 hover:underline dark:text-red-400">See all →</a>
       </div>
       <div className="flex space-x-6 overflow-x-auto pb-4">
         {stories.map((story) => (
           <div key={story.name} className="flex-shrink-0 text-center">
-            <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden mx-auto">
+            <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden mx-auto dark:bg-gray-700">
                 <img src={story.logo} alt={story.name} className="w-full h-full object-cover"/>
             </div>
-            <p className="text-xs mt-2 text-gray-600">{story.name}</p>
+            <p className="text-xs mt-2 text-gray-600 dark:text-gray-300">{story.name}</p>
           </div>
         ))}
       </div>
