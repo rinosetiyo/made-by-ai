@@ -7,9 +7,9 @@ function AuthorCard({ author, articleCount }) {
 
   return (
     <Link to={`/authors/${author.id}`} className="block">
-      <div className="bg-white rounded-lg shadow-md p-6 h-full hover:shadow-lg transition-shadow duration-300">
+      <div className="bg-white rounded-lg shadow-md p-6 h-full hover:shadow-lg transition-shadow duration-300 dark:bg-gray-800 dark:hover:bg-gray-700">
         <div className="flex items-center mb-4">
-          <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-200">
+          <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
             {author.profile_image ? (
               <img 
                 src={getImageUrl(author.profile_image)} 
@@ -25,15 +25,15 @@ function AuthorCard({ author, articleCount }) {
             )}
           </div>
           <div className="ml-4">
-            <h3 className="text-lg font-bold text-gray-800">{author.name}</h3>
-            <p className="text-sm text-gray-500">{author.email}</p>
+            <h3 className="text-lg font-bold text-gray-800 dark:text-white">{author.name}</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{author.email}</p>
           </div>
         </div>
         {author.bio && (
-          <p className="text-gray-600 text-sm mt-2 line-clamp-3">{author.bio}</p>
+          <p className="text-gray-600 text-sm mt-2 line-clamp-3 dark:text-gray-300">{author.bio}</p>
         )}
-        <div className="mt-3 text-sm text-gray-600">
-          <span className="inline-block bg-gray-100 rounded-full px-3 py-1">
+        <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+          <span className="inline-block bg-gray-100 rounded-full px-3 py-1 dark:bg-gray-700">
             {articleCount !== undefined ? articleCount : 0} article{articleCount !== 1 ? 's' : ''}
           </span>
         </div>

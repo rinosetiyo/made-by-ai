@@ -3,6 +3,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Q
 from django.contrib.auth.models import User
+from django.contrib.auth import authenticate, login
+from rest_framework import serializers
+from rest_framework.authtoken.models import Token
 from .models import Article, Category, Source, Subscriber, Author, Comment, Bookmark
 from .serializers import ArticleSerializer, CategorySerializer, SourceSerializer, SubscriberSerializer, AuthorSerializer, CommentSerializer, BookmarkSerializer
 
@@ -10,7 +13,7 @@ class ArticleList(generics.ListAPIView):
     serializer_class = ArticleSerializer
 
     def get_queryset(self):
-        queryset = Article.objects.all()
+        queryset = Article.objects.select_related('category', 'source', 'author_detail').all()
         
         # Pencarian berdasarkan judul dan konten
         search_query = self.request.query_params.get('search', None)
@@ -60,7 +63,7 @@ class CategoryArticlesList(generics.ListAPIView):
 
     def get_queryset(self):
         category_id = self.kwargs['pk']
-        return Article.objects.filter(category_id=category_id)
+        return Article.objects.select_related('category', 'source', 'author_detail').filter(category_id=category_id)
 
 class SourceList(generics.ListAPIView):
     queryset = Source.objects.all()
@@ -79,7 +82,7 @@ class AuthorArticlesList(generics.ListAPIView):
 
     def get_queryset(self):
         author_id = self.kwargs['pk']
-        return Article.objects.filter(author_detail_id=author_id)
+        return Article.objects.select_related('category', 'source', 'author_detail').filter(author_detail_id=author_id)
 
 class CommentListCreate(generics.ListCreateAPIView):
     serializer_class = CommentSerializer
@@ -90,8 +93,11 @@ class CommentListCreate(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         article_id = self.kwargs['article_pk']
-        article = Article.objects.get(pk=article_id)
-        serializer.save(article=article)
+        try:
+            article = Article.objects.get(pk=article_id)
+            serializer.save(article=article)
+        except Article.DoesNotExist:
+            raise serializers.ValidationError("Article does not exist")
 
 class SubscribeView(APIView):
     def post(self, request, format=None):
@@ -198,12 +204,12 @@ class RelatedArticlesView(APIView):
     """
     def get(self, request, article_id):
         try:
-            article = Article.objects.get(id=article_id)
+            article = Article.objects.select_related('category').get(id=article_id)
             category = article.category
             
             if category:
                 # Ambil artikel lain dalam kategori yang sama, exclude artikel saat ini
-                related_articles = Article.objects.filter(
+                related_articles = Article.objects.select_related('category', 'source', 'author_detail').filter(
                     category=category
                 ).exclude(
                     id=article_id
@@ -217,3 +223,178 @@ class RelatedArticlesView(APIView):
                 
         except Article.DoesNotExist:
             return Response({'error': 'Article not found'}, status=status.HTTP_404_NOT_FOUND)
+
+class MultiSearchView(APIView):
+    """
+    View untuk pencarian lintas model (artikel, penulis, kategori)
+    """
+    def get(self, request):
+        query = request.query_params.get('q', '')
+        
+        if not query:
+            return Response({
+                'articles': [],
+                'authors': [],
+                'categories': [],
+                'sources': []
+            })
+        
+        try:
+            # Cari artikel berdasarkan judul, konten, atau penulis
+            articles = Article.objects.select_related('author_detail', 'category', 'source').filter(
+                Q(title__icontains=query) |
+                Q(content__icontains=query) |
+                Q(author__icontains=query) |
+                Q(author_detail__name__icontains=query)
+            ).distinct()[:10]  # Batasi 10 hasil
+            
+            # Cari penulis berdasarkan nama atau email
+            authors = Author.objects.filter(
+                Q(name__icontains=query) |
+                Q(email__icontains=query) |
+                Q(bio__icontains=query)
+            ).distinct()[:5]  # Batasi 5 hasil
+            
+            # Cari kategori berdasarkan nama
+            categories = Category.objects.filter(
+                Q(name__icontains=query) |
+                Q(description__icontains=query)
+            ).distinct()[:5]  # Batasi 5 hasil
+            
+            # Cari sumber berdasarkan nama
+            sources = Source.objects.filter(
+                Q(name__icontains=query)
+            ).distinct()[:5]  # Batasi 5 hasil
+            
+            # Serialisasi hasil
+            article_serializer = ArticleSerializer(articles, many=True)
+            author_serializer = AuthorSerializer(authors, many=True)
+            category_serializer = CategorySerializer(categories, many=True)
+            source_serializer = SourceSerializer(sources, many=True)
+            
+            return Response({
+                'articles': article_serializer.data,
+                'authors': author_serializer.data,
+                'categories': category_serializer.data,
+                'sources': source_serializer.data
+            })
+        except Exception as e:
+            return Response({
+                'error': 'An error occurred during search',
+                'articles': [],
+                'authors': [],
+                'categories': [],
+                'sources': []
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RegisterView(APIView):
+    def post(self, request):
+        username = request.data.get('username')
+        email = request.data.get('email')
+        password = request.data.get('password')
+        
+        if not username or not email or not password:
+            return Response(
+                {'error': 'Username, email, and password are required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if user already exists
+        if User.objects.filter(username=username).exists():
+            return Response(
+                {'error': 'Username already exists'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if User.objects.filter(email=email).exists():
+            return Response(
+                {'error': 'Email already exists'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Create user
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password
+            )
+            
+            # Create token for the user
+            token, created = Token.objects.get_or_create(user=user)
+            
+            return Response({
+                'token': token.key,
+                'user_id': user.id,
+                'username': user.username,
+                'email': user.email
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response(
+                {'error': 'An error occurred during registration'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class LoginView(APIView):
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+        
+        if not username or not password:
+            return Response(
+                {'error': 'Username and password are required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        user = authenticate(username=username, password=password)
+        
+        if user:
+            # Login the user
+            login(request, user)
+            
+            # Get or create token
+            token, created = Token.objects.get_or_create(user=user)
+            
+            return Response({
+                'token': token.key,
+                'user_id': user.id,
+                'username': user.username,
+                'email': user.email
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response(
+                {'error': 'Invalid credentials'}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+
+class LogoutView(APIView):
+    def post(self, request):
+        try:
+            # Get token from headers
+            auth_header = request.META.get('HTTP_AUTHORIZATION')
+            if auth_header:
+                token_key = auth_header.split(' ')[1]  # Bearer <token>
+                token = Token.objects.get(key=token_key)
+                token.delete()
+            
+            return Response({'message': 'Successfully logged out'}, status=status.HTTP_200_OK)
+        except Token.DoesNotExist:
+            return Response({'error': 'Token not found'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': 'An error occurred during logout'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CurrentUserView(APIView):
+    def get(self, request):
+        if request.user.is_authenticated:
+            return Response({
+                'user_id': request.user.id,
+                'username': request.user.username,
+                'email': request.user.email
+            })
+        else:
+            return Response({'error': 'User not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)

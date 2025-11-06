@@ -58,7 +58,7 @@ const Section = ({ title, children }) => (
     <section className="mb-12">
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h2>
-            <a href="#" className="text-sm font-semibold text-red-600 hover:underline dark:text-red-400">See all →</a>
+            <a href="#" className="text-sm font-semibold text-red-600 hover:underline dark:text-red-400 dark:hover:text-red-300">See all →</a>
         </div>
         {children}
     </section>
@@ -88,7 +88,7 @@ function HomePage() {
     const sportsArticles = articles.filter(a => a.category?.name === 'Sports').slice(0, 4);
 
     return (
-        <div>
+        <div className="dark:text-white">
             <CategoryFilter />
             {heroArticle && <HeroArticle article={heroArticle} />}
             

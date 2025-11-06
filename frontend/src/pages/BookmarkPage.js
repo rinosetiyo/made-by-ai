@@ -59,13 +59,15 @@ function BookmarkPage() {
     const fetchBookmarks = async () => {
       try {
         setLoading(true);
-        // Untuk sementara, kita asumsikan user dengan ID tertentu
-        // Dalam implementasi nyata, Anda mungkin perlu mengelola session/user login
         const response = await apiClient.get('bookmarks/');
         setBookmarks(response.data);
         setError(null);
       } catch (err) {
-        setError('Failed to fetch bookmarks. Please try again.');
+        if (err.response?.status === 401) {
+          setError('Please log in to view your bookmarks.');
+        } else {
+          setError('Failed to fetch bookmarks. Please try again.');
+        }
         console.error('Error fetching bookmarks:', err);
       } finally {
         setLoading(false);

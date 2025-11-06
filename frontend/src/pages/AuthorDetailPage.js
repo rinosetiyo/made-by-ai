@@ -47,17 +47,17 @@ function AuthorDetailPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4">
+    <div className="max-w-7xl mx-auto py-8 px-4 dark:text-white">
       <button 
         onClick={() => navigate(-1)} 
-        className="text-red-600 hover:underline mb-6 flex items-center"
+        className="text-red-600 hover:underline mb-6 flex items-center dark:text-red-400 dark:hover:text-red-300"
       >
         ← Back to previous page
       </button>
 
-      <div className="bg-white rounded-lg shadow-md p-8 mb-8">
+      <div className="bg-white rounded-lg shadow-md p-8 mb-8 dark:bg-gray-800 dark:text-white">
         <div className="flex flex-col md:flex-row items-start">
-          <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 mr-8 mb-4 md:mb-0">
+          <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 mr-8 mb-4 md:mb-0 dark:bg-gray-700">
             {author.profile_image ? (
               <img 
                 src={getImageUrl(author.profile_image)} 
@@ -74,29 +74,29 @@ function AuthorDetailPage() {
           </div>
           
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{author.name}</h1>
-            <p className="text-gray-600 mb-4">{author.email}</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2 dark:text-white">{author.name}</h1>
+            <p className="text-gray-600 mb-4 dark:text-gray-300">{author.email}</p>
             {author.bio && (
-              <p className="text-gray-700 mb-4">{author.bio}</p>
+              <p className="text-gray-700 mb-4 dark:text-gray-300">{author.bio}</p>
             )}
-            <p className="text-gray-500 text-sm">Member since {new Date(author.created_at).toLocaleDateString()}</p>
+            <p className="text-gray-500 text-sm dark:text-gray-400">Member since {new Date(author.created_at).toLocaleDateString()}</p>
           </div>
         </div>
       </div>
 
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">
-          Articles by {author.name} <span className="text-gray-500">({articles.length})</span>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4 dark:text-white">
+          Articles by {author.name} <span className="text-gray-500 dark:text-gray-400">({articles.length})</span>
         </h2>
         
         {articles.length === 0 ? (
-          <p className="text-gray-500">No articles written by this author yet.</p>
+          <p className="text-gray-500 dark:text-gray-400">No articles written by this author yet.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {articles.map(article => (
               <Link key={article.id} to={`/articles/${article.id}`} className="block">
-                <div className="bg-white h-full hover:shadow-xl transition-shadow duration-300 rounded-lg overflow-hidden border border-gray-200">
-                  <div className="w-full h-48 bg-gray-200">
+                <div className="bg-white h-full hover:shadow-xl transition-shadow duration-300 rounded-lg overflow-hidden border border-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700">
+                  <div className="w-full h-48 bg-gray-200 dark:bg-gray-700">
                     <img 
                       src={article.image ? getImageUrl(article.image) : getPlaceholderImage(600, 400, article.title)} 
                       alt={article.title} 
@@ -104,11 +104,11 @@ function AuthorDetailPage() {
                     />
                   </div>
                   <div className="p-4">
-                    <h3 className="text-lg font-bold text-gray-800 mb-2">{article.title}</h3>
-                    <div className="text-xs text-gray-500 mb-1">
+                    <h3 className="text-lg font-bold text-gray-800 mb-2 dark:text-white">{article.title}</h3>
+                    <div className="text-xs text-gray-500 mb-1 dark:text-gray-400">
                       <span>{new Date(article.publication_date).toLocaleDateString()}</span>
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
                       <span>{article.category?.name || 'General'}</span>
                       <span className="mx-2">•</span>
                       <span>{article.read_time} min read</span>

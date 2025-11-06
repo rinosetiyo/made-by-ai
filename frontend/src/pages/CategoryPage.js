@@ -39,23 +39,23 @@ function CategoryPage() {
   }, [id]);
 
   if (loading) {
-    return <div className="text-center text-gray-500 py-10">Loading category...</div>;
+    return <div className="text-center text-gray-500 py-10 dark:text-gray-400">Loading category...</div>;
   }
 
   if (error) {
-    return <div className="text-center text-red-500 py-10">{error}</div>;
+    return <div className="text-center text-red-500 py-10 dark:text-red-400">{error}</div>;
   }
 
   if (!category) {
-    return <div className="text-center text-gray-500 py-10">Category not found</div>;
+    return <div className="text-center text-gray-500 py-10 dark:text-gray-400">Category not found</div>;
   }
 
   const getImageUrl = (path) => `http://127.0.0.1:8000${path}`;
   const getPlaceholderImage = (width, height, text = "No Image") => `https://placehold.co/${width}x${height}/png?text=${encodeURIComponent(text)}`;
 
   const ArticleCard = ({ article }) => (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="w-full h-48 bg-gray-200">
+    <div className="bg-white rounded-lg shadow-md overflow-hidden dark:bg-gray-800 dark:hover:bg-gray-700">
+      <div className="w-full h-48 bg-gray-200 dark:bg-gray-700">
         <img 
           src={article.image ? getImageUrl(article.image) : getPlaceholderImage(400, 300, article.title)} 
           alt={article.title} 
@@ -63,14 +63,14 @@ function CategoryPage() {
         />
       </div>
       <div className="p-4">
-        <div className="flex items-center text-sm text-gray-500 mb-2">
+        <div className="flex items-center text-sm text-gray-500 mb-2 dark:text-gray-400">
           <span>{article.source?.name || 'News'}</span>
           <span className="mx-2">•</span>
           <span>{new Date(article.publication_date).toLocaleDateString()}</span>
         </div>
-        <h3 className="text-lg font-bold text-gray-800 mb-2">{article.title}</h3>
-        <p className="text-gray-600 text-sm mb-2">{article.content.substring(0, 100)}...</p>
-        <div className="text-xs text-gray-500">
+        <h3 className="text-lg font-bold text-gray-800 mb-2 dark:text-white">{article.title}</h3>
+        <p className="text-gray-600 text-sm mb-2 dark:text-gray-300">{article.content.substring(0, 100)}...</p>
+        <div className="text-xs text-gray-500 dark:text-gray-400">
           <span>{article.category?.name || 'General'}</span>
           <span className="mx-2">•</span>
           <span>{article.read_time} min read</span>
@@ -80,23 +80,23 @@ function CategoryPage() {
   );
 
   const SubcategoryCard = ({ subcategory }) => (
-    <div className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow duration-300">
-      <h3 className="text-lg font-bold text-gray-800 mb-2">{subcategory.name}</h3>
-      <p className="text-gray-600 text-sm mb-3">{subcategory.description}</p>
-      <div className="text-xs text-gray-500">
+    <div className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow duration-300 dark:bg-gray-800 dark:hover:bg-gray-700">
+      <h3 className="text-lg font-bold text-gray-800 mb-2 dark:text-white">{subcategory.name}</h3>
+      <p className="text-gray-600 text-sm mb-3 dark:text-gray-300">{subcategory.description}</p>
+      <div className="text-xs text-gray-500 dark:text-gray-400">
         <span>Created: {new Date(subcategory.created_at).toLocaleDateString()}</span>
       </div>
     </div>
   );
 
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4">
+    <div className="max-w-7xl mx-auto py-8 px-4 dark:text-white">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">{category.name}</h1>
-        {category.description && <p className="text-gray-600">{category.description}</p>}
-        <div className="mt-4 text-sm text-gray-500">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2 dark:text-white">{category.name}</h1>
+        {category.description && <p className="text-gray-600 dark:text-gray-300">{category.description}</p>}
+        <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
           {category.parent_name && (
-            <span>Subcategory of: <span className="font-semibold">{category.parent_name}</span></span>
+            <span>Subcategory of: <span className="font-semibold dark:text-white">{category.parent_name}</span></span>
           )}
           {!category.parent_name && <span>Main Category</span>}
         </div>
@@ -105,7 +105,7 @@ function CategoryPage() {
       {/* Subcategories Section */}
       {subcategories.length > 0 && (
         <section className="mb-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Subcategories</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 dark:text-white">Subcategories</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {subcategories.map(subcategory => (
               <SubcategoryCard key={subcategory.id} subcategory={subcategory} />
@@ -116,12 +116,12 @@ function CategoryPage() {
 
       {/* Articles Section */}
       <section>
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">
-          Articles in {category.name} <span className="text-gray-500">({articles.length})</span>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6 dark:text-white">
+          Articles in {category.name} <span className="text-gray-500 dark:text-gray-400">({articles.length})</span>
         </h2>
         
         {articles.length === 0 ? (
-          <p className="text-gray-500">No articles found in this category.</p>
+          <p className="text-gray-500 dark:text-gray-400">No articles found in this category.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {articles.map(article => (

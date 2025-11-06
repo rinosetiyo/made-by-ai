@@ -45,7 +45,7 @@ class Author(models.Model):
 
 class Article(models.Model):
     title = models.CharField(max_length=200, db_index=True)
-    content = models.TextField()
+    content = models.TextField(db_index=True)  # Add index to content for search performance
     author = models.CharField(max_length=100, db_index=True)  # This can be kept for backward compatibility
     publication_date = models.DateTimeField(auto_now_add=True, db_index=True)
     category = models.ForeignKey(Category, related_name='articles', on_delete=models.SET_NULL, null=True, blank=True, db_index=True)
@@ -54,8 +54,13 @@ class Article(models.Model):
     image = models.ImageField(upload_to='articles/', null=True, blank=True)
     author_detail = models.ForeignKey(Author, related_name='articles', on_delete=models.SET_NULL, null=True, blank=True, db_index=True)
 
-    def __str__informed(self):
+    def __str__(self):
         return self.title
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['title', 'content']),  # Composite index for search
+        ]
 
 class Comment(models.Model):
     article = models.ForeignKey(Article, related_name='comments', on_delete=models.CASCADE, db_index=True)
