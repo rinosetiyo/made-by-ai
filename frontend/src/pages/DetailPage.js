@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../services/api';
 import CommentSection from '../components/CommentSection';
 import BookmarkButton from '../components/BookmarkButton';
+import SocialSharing from '../components/SocialSharing';
 
 const getImageUrl = (path) => `http://127.0.0.1:8000${path}`;
 const getPlaceholderImage = (width, height, text = "No Image") => `https://placehold.co/${width}x${height}/png?text=${encodeURIComponent(text)}`;
@@ -38,6 +40,8 @@ function DetailPage() {
   const [loadingRelated, setLoadingRelated] = useState(true);
   const { id } = useParams();
 
+  const { user } = useAuth();
+
   useEffect(() => {
     apiClient.get(`articles/${id}/`).then(response => {
       setArticle(response.data);
@@ -57,6 +61,23 @@ function DetailPage() {
     }
   }, [id]);
 
+  // Record reading history when article loads
+  useEffect(() => {
+    if (user && article) {
+      const recordReadingHistory = async () => {
+        try {
+          await apiClient.post('reading-history/', {
+            article_id: article.id
+          });
+        } catch (error) {
+          console.error('Error recording reading history:', error);
+        }
+      };
+
+      recordReadingHistory();
+    }
+  }, [article, user]);
+
   if (!article) {
     return <div className="text-center text-gray-500 dark:text-gray-400">Loading article...</div>;
   }
@@ -72,7 +93,9 @@ function DetailPage() {
               </svg>
               Back to Home
             </Link>
-            <BookmarkButton articleId={article.id} />
+            <div className="flex space-x-2">
+              <BookmarkButton articleId={article.id} />
+            </div>
           </div>
           
           <article>

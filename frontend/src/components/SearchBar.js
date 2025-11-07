@@ -167,41 +167,27 @@ const SearchBar = () => {
         if (activeIndex >= 0) {
           // Determine which result type and index to navigate to
           let currentIdx = 0;
-          let resultType = null;
-          let resultId = null;
-
+          
           // Check if it's an article
-          if (activeIndex < currentIdx + searchResults.articles.length) {
-            resultType = 'article';
-            resultId = searchResults.articles[activeIndex].id;
+          if (activeIndex < searchResults.articles.length) {
+            navigateToResult('article', searchResults.articles[activeIndex].id);
           } else {
             currentIdx += searchResults.articles.length;
             
             // Check if it's an author
             if (activeIndex < currentIdx + searchResults.authors.length) {
-              resultType = 'author';
-              resultId = searchResults.authors[activeIndex - currentIdx].id;
+              navigateToResult('author', searchResults.authors[activeIndex - currentIdx].id);
             } else {
               currentIdx += searchResults.authors.length;
               
               // Check if it's a category
               if (activeIndex < currentIdx + searchResults.categories.length) {
-                resultType = 'category';
-                resultId = searchResults.categories[activeIndex - currentIdx].id;
+                navigateToResult('category', searchResults.categories[activeIndex - currentIdx].id);
               } else {
-                currentIdx += searchResults.categories.length;
-                
                 // It's a source
-                if (activeIndex < currentIdx + searchResults.sources.length) {
-                  resultType = 'source';
-                  resultId = searchResults.sources[activeIndex - currentIdx].id;
-                }
+                navigateToResult('source', searchResults.sources[activeIndex - currentIdx - searchResults.categories.length].id);
               }
             }
-          }
-          
-          if (resultType && resultId) {
-            navigateToResult(resultType, resultId);
           }
         }
         break;

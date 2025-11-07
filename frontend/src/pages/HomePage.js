@@ -84,8 +84,8 @@ function HomePage() {
 
     const [heroArticle, ...otherArticles] = articles;
     const latestNews = otherArticles.slice(0, 4);
-    const businessArticles = articles.filter(a => a.category?.name === 'Business').slice(0, 4);
-    const sportsArticles = articles.filter(a => a.category?.name === 'Sports').slice(0, 4);
+    const businessArticles = otherArticles.filter(a => a.category?.name === 'Business').slice(0, 4);
+    const sportsArticles = otherArticles.filter(a => a.category?.name === 'Sports').slice(0, 4);
 
     return (
         <div className="dark:text-white">

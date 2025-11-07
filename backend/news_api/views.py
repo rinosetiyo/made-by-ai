@@ -4,10 +4,10 @@ from rest_framework.views import APIView
 from django.db.models import Q
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login
-from rest_framework import serializers
+from rest_framework import serializers, permissions
 from rest_framework.authtoken.models import Token
-from .models import Article, Category, Source, Subscriber, Author, Comment, Bookmark
-from .serializers import ArticleSerializer, CategorySerializer, SourceSerializer, SubscriberSerializer, AuthorSerializer, CommentSerializer, BookmarkSerializer
+from .models import Article, Category, Source, Subscriber, Author, Comment, Bookmark, ReadingHistory, UserPreference, CommentLike
+from .serializers import ArticleSerializer, CategorySerializer, SourceSerializer, SubscriberSerializer, AuthorSerializer, CommentSerializer, BookmarkSerializer, ReadingHistorySerializer, UserPreferenceSerializer
 
 class ArticleList(generics.ListAPIView):
     serializer_class = ArticleSerializer
@@ -89,17 +89,58 @@ class CommentListCreate(generics.ListCreateAPIView):
 
     def get_queryset(self):
         article_id = self.kwargs['article_pk']
-        return Comment.objects.filter(article_id=article_id, is_approved=True)
+        # Hanya tampilkan komentar utama (bukan reply) yang telah disetujui
+        return Comment.objects.filter(article_id=article_id, is_approved=True, parent__isnull=True).order_by('-created_at')
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
     def perform_create(self, serializer):
         article_id = self.kwargs['article_pk']
         try:
             article = Article.objects.get(pk=article_id)
+            
+            # Jika komentar ini adalah reply, pastikan parent komentar valid
+            parent = serializer.validated_data.get('parent')
+            if parent:
+                # Validasi bahwa parent adalah komentar dari artikel yang sama
+                if parent.article_id != article_id:
+                    raise serializers.ValidationError("Reply must be to a comment on the same article.")
+            
             serializer.save(article=article)
         except Article.DoesNotExist:
             raise serializers.ValidationError("Article does not exist")
 
+class CommentModerationView(APIView):
+    """
+    View untuk admin untuk mengelola komentar (approve/reject)
+    """
+    permission_classes = [permissions.IsAdminUser]
+    
+    def patch(self, request, comment_id):
+        try:
+            comment = Comment.objects.get(id=comment_id)
+            action = request.data.get('action')
+            
+            if action == 'approve':
+                comment.is_approved = True
+                comment.save()
+                return Response({'message': 'Comment approved'}, status=status.HTTP_200_OK)
+            elif action == 'reject':
+                comment.is_approved = False
+                comment.save()
+                return Response({'message': 'Comment rejected'}, status=status.HTTP_200_OK)
+            else:
+                return Response({'error': 'Invalid action. Use "approve" or "reject"'}, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Comment.DoesNotExist:
+            return Response({'error': 'Comment not found'}, status=status.HTTP_404_NOT_FOUND)
+
 class SubscribeView(APIView):
+    permission_classes = []  # Tidak ada izin yang diperlukan untuk subscribe
+    
     def post(self, request, format=None):
         serializer = SubscriberSerializer(data=request.data)
         if serializer.is_valid():
@@ -109,7 +150,6 @@ class SubscribeView(APIView):
 
 class BookmarkListCreateView(generics.ListCreateAPIView):
     serializer_class = BookmarkSerializer
-    permission_classes = []  # Sementara tanpa permission untuk testing
 
     def get_queryset(self):
         user = self.request.user
@@ -131,7 +171,6 @@ class BookmarkListCreateView(generics.ListCreateAPIView):
 class BookmarkDeleteView(generics.DestroyAPIView):
     queryset = Bookmark.objects.all()
     serializer_class = BookmarkSerializer
-    permission_classes = []  # Sementara tanpa permission untuk testing
 
     def get_queryset(self):
         user = self.request.user
@@ -288,7 +327,270 @@ class MultiSearchView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class ReadingHistoryView(APIView):
+    """
+    View to manage reading history for authenticated users.
+    """
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        try:
+            # Get reading history for the authenticated user
+            history_items = ReadingHistory.objects.filter(user=request.user).select_related('article__author_detail', 'article__category', 'article__source')[:20]  # Get last 20 articles
+            serializer = ReadingHistorySerializer(history_items, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': 'Failed to fetch reading history'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def post(self, request):
+        if not request.user.is_authenticated:
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        article_id = request.data.get('article_id')
+        if not article_id:
+            return Response({'error': 'Article ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            article = Article.objects.get(id=article_id)
+            # Create or get existing reading history entry
+            history, created = ReadingHistory.objects.get_or_create(
+                user=request.user,
+                article=article
+            )
+            serializer = ReadingHistorySerializer(history)
+            return Response(serializer.data, status=status.HTTP_200_OK if not created else status.HTTP_201_CREATED)
+        except Article.DoesNotExist:
+            return Response({'error': 'Article not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': 'Failed to record reading history'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CommentLikeView(APIView):
+    """
+    View to like/unlike comments.
+    """
+    def post(self, request, comment_id):
+        if not request.user.is_authenticated:
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        try:
+            comment = Comment.objects.get(id=comment_id)
+            
+            # Periksa apakah user sudah menyukai komentar ini sebelumnya
+            like, created = CommentLike.objects.get_or_create(
+                user=request.user,
+                comment=comment
+            )
+            
+            if created:
+                # Jika baru dibuat, tambahkan jumlah like
+                comment.likes = comment.likes + 1
+                comment.save()
+                
+                # Buat notifikasi untuk penulis komentar
+                try:
+                    # Coba dapatkan user yang membuat komentar berdasarkan email
+                    comment_author = User.objects.get(email=comment.author_email)
+                    if comment_author != request.user:  # Jangan buat notifikasi untuk diri sendiri
+                        Notification.objects.create(
+                            user=comment_author,
+                            title='Your comment received a like',
+                            message=f'{request.user.username} liked your comment on an article',
+                            notification_type='comment_like',
+                            related_comment=comment,
+                            related_user=request.user
+                        )
+                except User.DoesNotExist:
+                    # Jika penulis komentar tidak memiliki akun, tidak buat notifikasi
+                    pass
+                
+                return Response({
+                    'message': 'Comment liked',
+                    'likes': comment.likes
+                }, status=status.HTTP_200_OK)
+            else:
+                # Jika sudah pernah menyukai, kembalikan pesan bahwa sudah disukai
+                return Response({
+                    'message': 'Comment already liked',
+                    'likes': comment.likes
+                }, status=status.HTTP_200_OK)
+                
+        except Comment.DoesNotExist:
+            return Response({'error': 'Comment not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+    def delete(self, request, comment_id):
+        # Untuk unlike komentar
+        if not request.user.is_authenticated:
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        try:
+            comment = Comment.objects.get(id=comment_id)
+            
+            # Cari apakah user telah menyukai komentar ini
+            try:
+                like = CommentLike.objects.get(user=request.user, comment=comment)
+                like.delete()
+                
+                # Kurangi jumlah like
+                if comment.likes > 0:
+                    comment.likes = comment.likes - 1
+                    comment.save()
+                
+                return Response({
+                    'message': 'Comment unliked',
+                    'likes': comment.likes
+                }, status=status.HTTP_200_OK)
+            except CommentLike.DoesNotExist:
+                # Jika belum menyukai, kembalikan pesan error
+                return Response({
+                    'error': 'Comment was not liked'
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Comment.DoesNotExist:
+            return Response({'error': 'Comment not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class CommentReportView(APIView):
+    """
+    View to report inappropriate comments.
+    """
+    def post(self, request):
+        if not request.user.is_authenticated:
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        comment_id = request.data.get('comment_id')
+        reason = request.data.get('reason')
+        description = request.data.get('description', '')
+        
+        if not comment_id or not reason:
+            return Response({'error': 'Comment ID and reason are required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            comment = Comment.objects.get(id=comment_id)
+            # Cek apakah user sudah melaporkan komentar ini sebelumnya
+            report, created = CommentReport.objects.get_or_create(
+                comment=comment,
+                user=request.user,
+                defaults={
+                    'reason': reason,
+                    'description': description
+                }
+            )
+            
+            if created:
+                # Buat notifikasi ke admin tentang laporan baru
+                admin_users = User.objects.filter(is_staff=True)
+                for admin in admin_users:
+                    Notification.objects.create(
+                        user=admin,
+                        title=f'New Comment Report',
+                        message=f'A comment by {comment.author_name} has been reported for {reason}',
+                        notification_type='system',
+                        related_comment=comment,
+                        related_user=request.user
+                    )
+                
+                return Response({'message': 'Comment reported successfully'}, status=status.HTTP_201_CREATED)
+            else:
+                return Response({'message': 'Comment already reported'}, status=status.HTTP_200_OK)
+                
+        except Comment.DoesNotExist:
+            return Response({'error': 'Comment not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': 'Failed to report comment'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class NotificationView(APIView):
+    """
+    View to manage user notifications.
+    """
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        try:
+            notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:20]  # Ambil 20 notifikasi terbaru
+            serializer = NotificationSerializer(notifications, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': 'Failed to fetch notifications'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def post(self, request):
+        # Endpoint untuk menandai notifikasi sebagai sudah dibaca
+        if not request.user.is_authenticated:
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        notification_id = request.data.get('notification_id')
+        if not notification_id:
+            return Response({'error': 'Notification ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            notification = Notification.objects.get(id=notification_id, user=request.user)
+            notification.is_read = True
+            notification.save()
+            return Response({'message': 'Notification marked as read'}, status=status.HTTP_200_OK)
+        except Notification.DoesNotExist:
+            return Response({'error': 'Notification not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    def delete(self, request):
+        # Endpoint untuk menghapus notifikasi
+        if not request.user.is_authenticated:
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        notification_id = request.data.get('notification_id')
+        if not notification_id:
+            return Response({'error': 'Notification ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            notification = Notification.objects.get(id=notification_id, user=request.user)
+            notification.delete()
+            return Response({'message': 'Notification deleted'}, status=status.HTTP_200_OK)
+        except Notification.DoesNotExist:
+            return Response({'error': 'Notification not found'}, status=status.HTTP_404_NOT_FOUND)
+
+class UserPreferenceView(APIView):
+    """
+    View to manage user preferences.
+    """
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        try:
+            user_preference, created = UserPreference.objects.get_or_create(user=request.user)
+            serializer = UserPreferenceSerializer(user_preference)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': 'Failed to fetch user preferences'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def post(self, request):
+        if not request.user.is_authenticated:
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        try:
+            # Get or create user preferences
+            user_preference, created = UserPreference.objects.get_or_create(user=request.user)
+            
+            # Update fields based on request data
+            if 'preferred_categories_ids' in request.data:
+                user_preference.preferred_categories.set(request.data['preferred_categories_ids'])
+            
+            if 'preferred_sources_ids' in request.data:
+                user_preference.preferred_sources.set(request.data['preferred_sources_ids'])
+                
+            if 'newsletter_subscription' in request.data:
+                user_preference.newsletter_subscription = request.data['newsletter_subscription']
+            
+            user_preference.save()
+            serializer = UserPreferenceSerializer(user_preference)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': 'Failed to update user preferences'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class RegisterView(APIView):
+    permission_classes = []  # Tidak ada izin yang diperlukan untuk registrasi
+    
     def post(self, request):
         username = request.data.get('username')
         email = request.data.get('email')
@@ -339,6 +641,8 @@ class RegisterView(APIView):
 
 
 class LoginView(APIView):
+    permission_classes = []  # Tidak ada izin yang diperlukan untuk login
+    
     def post(self, request):
         username = request.data.get('username')
         password = request.data.get('password')

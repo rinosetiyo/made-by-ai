@@ -70,6 +70,8 @@ class Comment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_approved = models.BooleanField(default=True, db_index=True)  # Untuk moderasi komentar
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies', db_index=True)  # Untuk reply komentar
+    likes = models.PositiveIntegerField(default=0)  # Untuk jumlah like komentar
 
     def __str__(self):
         return f'Comment by {self.author_name} on {self.article.title}'
@@ -84,3 +86,89 @@ class Bookmark(models.Model):
 
     def __str__(self):
         return f'{self.user.username} bookmarked {self.article.title}'
+
+
+class ReadingHistory(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reading_history')
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='reading_history')
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'article')  # Prevent duplicate entries for the same user/article
+        ordering = ['-timestamp']  # Order by most recent first
+
+    def __str__(self):
+        return f'{self.user.username} read {self.article.title}'
+
+
+class Notification(models.Model):
+    NOTIFICATION_TYPES = [
+        ('new_article', 'New Article'),
+        ('comment_reply', 'Comment Reply'),
+        ('comment_like', 'Comment Like'),
+        ('comment_mention', 'Comment Mention'),
+        ('system', 'System Message'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, null=True, blank=True)
+    related_comment = models.ForeignKey(Comment, on_delete=models.CASCADE, null=True, blank=True)
+    related_user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='related_notifications')
+
+    def __str__(self):
+        return f'Notification for {self.user.username}: {self.title}'
+
+    class Meta:
+        ordering = ['-created_at']
+
+class CommentLike(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comment_likes')
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name='user_likes')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.user.username} liked comment {self.comment.id}'
+
+    class Meta:
+        unique_together = ('user', 'comment')  # Satu pengguna hanya bisa menyukai komentar satu kali
+
+
+class CommentReport(models.Model):
+    REPORT_REASONS = [
+        ('spam', 'Spam'),
+        ('harassment', 'Harassment'),
+        ('inappropriate', 'Inappropriate Content'),
+        ('misleading', 'Misleading Information'),
+        ('other', 'Other'),
+    ]
+    
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name='reports')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comment_reports')
+    reason = models.CharField(max_length=20, choices=REPORT_REASONS)
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved = models.BooleanField(default=False)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='resolved_reports')
+
+    def __str__(self):
+        return f'Report on comment {self.comment.id} by {self.user.username}'
+
+    class Meta:
+        unique_together = ('comment', 'user')  # Satu pengguna hanya bisa melaporkan komentar satu kali
+
+class UserPreference(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='preferences')
+    preferred_categories = models.ManyToManyField(Category, blank=True)
+    preferred_sources = models.ManyToManyField(Source, blank=True)
+    newsletter_subscription = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'Preferences for {self.user.username}'

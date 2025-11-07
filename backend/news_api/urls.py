@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import ArticleList, ArticleDetail, CategoryList, CategoryDetail, CategoryArticlesList, SourceList, AuthorList, AuthorDetail, AuthorArticlesList, CommentListCreate, SubscribeView, BookmarkListCreateView, BookmarkDeleteView, UserBookmarksView, ArticleBookmarksView, RelatedArticlesView, MultiSearchView, RegisterView, LoginView, LogoutView, CurrentUserView
+from .views import ArticleList, ArticleDetail, CategoryList, CategoryDetail, CategoryArticlesList, SourceList, AuthorList, AuthorDetail, AuthorArticlesList, CommentListCreate, SubscribeView, BookmarkListCreateView, BookmarkDeleteView, UserBookmarksView, ArticleBookmarksView, RelatedArticlesView, MultiSearchView, RegisterView, LoginView, LogoutView, CurrentUserView, ReadingHistoryView, UserPreferenceView, CommentModerationView, NotificationView, CommentReportView, CommentLikeView
 
 urlpatterns = [
     path('articles/', ArticleList.as_view(), name='article-list'),
@@ -23,4 +23,10 @@ urlpatterns = [
     path('auth/login/', LoginView.as_view(), name='login'),
     path('auth/logout/', LogoutView.as_view(), name='logout'),
     path('auth/user/', CurrentUserView.as_view(), name='current-user'),
+    path('reading-history/', ReadingHistoryView.as_view(), name='reading-history'),
+    path('user-preferences/', UserPreferenceView.as_view(), name='user-preferences'),
+    path('notifications/', NotificationView.as_view(), name='notifications'),
+    path('comment-report/', CommentReportView.as_view(), name='comment-report'),
+    path('comments/<int:comment_id>/like/', CommentLikeView.as_view(), name='comment-like'),
+    path('comments/<int:comment_id>/moderate/', CommentModerationView.as_view(), name='comment-moderate'),
 ]

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import apiClient from '../services/api';
 
 function CategoryPage() {
@@ -54,39 +54,43 @@ function CategoryPage() {
   const getPlaceholderImage = (width, height, text = "No Image") => `https://placehold.co/${width}x${height}/png?text=${encodeURIComponent(text)}`;
 
   const ArticleCard = ({ article }) => (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden dark:bg-gray-800 dark:hover:bg-gray-700">
-      <div className="w-full h-48 bg-gray-200 dark:bg-gray-700">
-        <img 
-          src={article.image ? getImageUrl(article.image) : getPlaceholderImage(400, 300, article.title)} 
-          alt={article.title} 
-          className="w-full h-full object-cover"
-        />
-      </div>
-      <div className="p-4">
-        <div className="flex items-center text-sm text-gray-500 mb-2 dark:text-gray-400">
-          <span>{article.source?.name || 'News'}</span>
-          <span className="mx-2">•</span>
-          <span>{new Date(article.publication_date).toLocaleDateString()}</span>
+    <Link to={`/articles/${article.id}`} className="block">
+      <div className="bg-white rounded-lg shadow-md overflow-hidden dark:bg-gray-800 dark:hover:bg-gray-700 hover:shadow-lg transition-shadow duration-300">
+        <div className="w-full h-48 bg-gray-200 dark:bg-gray-700">
+          <img 
+            src={article.image ? getImageUrl(article.image) : getPlaceholderImage(400, 300, article.title)} 
+            alt={article.title} 
+            className="w-full h-full object-cover"
+          />
         </div>
-        <h3 className="text-lg font-bold text-gray-800 mb-2 dark:text-white">{article.title}</h3>
-        <p className="text-gray-600 text-sm mb-2 dark:text-gray-300">{article.content.substring(0, 100)}...</p>
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          <span>{article.category?.name || 'General'}</span>
-          <span className="mx-2">•</span>
-          <span>{article.read_time} min read</span>
+        <div className="p-4">
+          <div className="flex items-center text-sm text-gray-500 mb-2 dark:text-gray-400">
+            <span>{article.source?.name || 'News'}</span>
+            <span className="mx-2">•</span>
+            <span>{new Date(article.publication_date).toLocaleDateString()}</span>
+          </div>
+          <h3 className="text-lg font-bold text-gray-800 mb-2 dark:text-white hover:text-red-600 dark:hover:text-red-400">{article.title}</h3>
+          <p className="text-gray-600 text-sm mb-2 dark:text-gray-300">{article.content.substring(0, 100)}...</p>
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            <span>{article.category?.name || 'General'}</span>
+            <span className="mx-2">•</span>
+            <span>{article.read_time} min read</span>
+          </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 
   const SubcategoryCard = ({ subcategory }) => (
-    <div className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow duration-300 dark:bg-gray-800 dark:hover:bg-gray-700">
-      <h3 className="text-lg font-bold text-gray-800 mb-2 dark:text-white">{subcategory.name}</h3>
-      <p className="text-gray-600 text-sm mb-3 dark:text-gray-300">{subcategory.description}</p>
-      <div className="text-xs text-gray-500 dark:text-gray-400">
-        <span>Created: {new Date(subcategory.created_at).toLocaleDateString()}</span>
+    <Link to={`/categories/${subcategory.id}`} className="block">
+      <div className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow duration-300 dark:bg-gray-800 dark:hover:bg-gray-700 hover:scale-[1.02] transition-transform">
+        <h3 className="text-lg font-bold text-gray-800 mb-2 dark:text-white hover:text-red-600 dark:hover:text-red-400">{subcategory.name}</h3>
+        <p className="text-gray-600 text-sm mb-3 dark:text-gray-300">{subcategory.description}</p>
+        <div className="text-xs text-gray-500 dark:text-gray-400">
+          <span>Created: {new Date(subcategory.created_at).toLocaleDateString()}</span>
+        </div>
       </div>
-    </div>
+    </Link>
   );
 
   return (
